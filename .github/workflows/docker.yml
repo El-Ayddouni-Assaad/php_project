@@ -1,0 +1,53 @@
+name: Build and Test Docker Application
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Build Backend Docker image
+      run: docker build -t backend-app:${{ github.sha }} .
+    
+    - name: Test Backend image
+      run: |
+        docker run --rm backend-app:${{ github.sha }} php -v
+        docker run --rm backend-app:${{ github.sha }} curl --version
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Build Frontend Docker image
+      run: docker build -t frontend-app:${{ github.sha }} ./frontend
+    
+    - name: Test Frontend image
+      run: docker run --rm frontend-app:${{ github.sha }} ls -la /usr/share/nginx/html
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Start full environment
+      run: docker-compose up -d --build
+    
+    - name: Wait for services to be ready
+      run: sleep 30
+    
+    - name: Check running containers
+      run: docker-compose ps
+    
+    - name: Cleanup
+      run: docker-compose down
